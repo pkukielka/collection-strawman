@@ -12,17 +12,19 @@ trait StrictOptimizedSeqOps [+A, +CC[_], +C]
     with StrictOptimizedIterableOps[A, CC, C] {
 
   override def distinctBy[B](f: A => B): C = {
-    val builder = newSpecificBuilder()
-    val seen = mutable.HashSet.empty[B]
-
-    for (x <- this) {
-      val y = f(x)
-      if (!seen.contains(y)) {
-        seen += y
-        builder += x
+    val isImmutable = this.isInstanceOf[immutable.Seq[_]]
+    if (isImmutable && lengthCompare(1) <= 0) coll
+    else {
+      val builder = newSpecificBuilder()
+      val seen = mutable.HashSet.empty[B]
+      var it = this.iterator()
+      var different = false
+      while (it.hasNext) {
+        val next = it.next()
+        if (seen.add(f(next))) builder += next else different = true
       }
+      if (different) builder.result() else coll
     }
-    builder.result()
   }
 
   override def prepended[B >: A](elem: B): CC[B] = {
